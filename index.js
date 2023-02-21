@@ -30,7 +30,7 @@ mongoose
 	.catch((err) => console.log(err));
 
 app.get("/", (req, res) => {
-	res.send(200);
+	res.send("Hello");
 });
 
 app.post("/astria", async (req, res) => {
