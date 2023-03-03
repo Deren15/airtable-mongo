@@ -27,6 +27,9 @@ const newsArticleSchema = new Schema(
 		link: {
 			type: String,
 		},
+		deepLink: {
+			type: String
+		},
 		timestamp: {
 			type: String,
 		},

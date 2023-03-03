@@ -1,10 +1,11 @@
-require("dotenv").config();
+// require("dotenv").config();
+// const mySecret = process.env['DATABASE_URL']
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const axios = require("axios");
 const mongoose = require("mongoose");
-const slugify = require('slugify')
+const slugify = require("slugify");
 
 // Import models
 const NewsArticle = require("./models/NewsArticle");
@@ -59,7 +60,7 @@ app.post("/airtable", async (req, res) => {
 				);
 				const { data } = response;
 				const { payloads } = data;
-				// console.log(payloads[payloads.length - 1])
+				console.log("Received Data", payloads[payloads.length - 1]);
 				const recent_payload = payloads[payloads.length - 1];
 				// console.log(recent_payload)
 				// console.log(recent_payload?.changedTablesById)
@@ -74,6 +75,7 @@ app.post("/airtable", async (req, res) => {
 				const unchanged = field.unchanged;
 
 				if (current && unchanged) {
+					console.log("Found changes");
 					const current_cellValuesByFieldId = current.cellValuesByFieldId;
 					const unchanged_cellValuesByFieldId = unchanged.cellValuesByFieldId;
 
@@ -82,6 +84,7 @@ app.post("/airtable", async (req, res) => {
 							Object.keys(current_cellValuesByFieldId)[0]
 						];
 					if (current_cellValuesByFieldId_publish === true) {
+						console.log("Need to publish this");
 						const unchanged_cellValuesByFieldId_title =
 							unchanged_cellValuesByFieldId[
 								Object.keys(unchanged_cellValuesByFieldId)[0]
@@ -114,18 +117,43 @@ app.post("/airtable", async (req, res) => {
 						// console.log(current_cellValuesByFieldId_article)
 						// console.log(unchanged_cellValuesByFieldId_title)
 						// console.log(unchanged_cellValuesByFieldId_banner)
+						const articleSlug = slugify(unchanged_cellValuesByFieldId_title, {
+							lower: true,
+							remove: /[.'#]/g,
+						});
+
+						let deepLink;
+
+						try {
+							// Firebase deep link
+							const firebaseResponse = await axios.post(
+								`https://firebasedynamiclinks.googleapis.com/v1/shortLinks?key=${process.env.FIREBASE_API_KEY}`,
+								{
+									dynamicLinkInfo: {
+										domainUriPrefix: "https://assetmoney.page.link",
+										link: `https://unicorn-web.vercel.app/article/${articleSlug}`,
+										androidInfo: {
+											androidPackageName: "com.assetmoney.unicorn",
+											androidFallbackLink: `https://unicorn-web.vercel.app/article/${articleSlug}`,
+										},
+									},
+								}
+							);
+							// console.log(firebaseResponse)
+							deepLink = firebaseResponse.data?.shortLink;
+						} catch (err) {
+							console.log(err);
+						}
 
 						const article = {
 							title: unchanged_cellValuesByFieldId_title,
-							slug: slugify(unchanged_cellValuesByFieldId_title, {
-								lower: true,
-								remove: /[.]/g
-							}),
+							slug: articleSlug,
 							banner_image: unchanged_cellValuesByFieldId_banner,
 							article: JSON.stringify(unchanged_cellValuesByFieldId_article),
 							categories: unchanged_cellValuesByFieldId_categories,
 							summary: unchanged_cellValuesByFieldId_summary,
 							link: unchanged_cellValuesByFieldId_link,
+							deepLink: deepLink,
 							timestamp: unchanged_cellValuesByFieldId_timestamp,
 						};
 
@@ -150,7 +178,7 @@ app.post("/airtable", async (req, res) => {
 												wzrk_cid: "AssetTest",
 												default_sound: true,
 												background_image: article.banner_image,
-												deep_link: "asset://news",
+												deep_link: deepLink,
 											},
 										},
 									},
@@ -161,9 +189,9 @@ app.post("/airtable", async (req, res) => {
 								},
 								{
 									headers: {
-										"X-CleverTap-Account-Id": "TEST-9RK-766-576Z",
+										"X-CleverTap-Account-Id": process.env.CLEVERTAP_ACCOUNT_ID,
 										"X-CleverTap-Passcode":
-											"7eb5836d-5d62-4651-aca9-f5c0cf7245a1",
+											process.env.CLEVERTAP_PASSCODE,
 										"Content-Type": "application/json",
 									},
 								}
