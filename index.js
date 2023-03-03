@@ -4,6 +4,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const axios = require("axios");
 const mongoose = require("mongoose");
+const slugify = require('slugify')
 
 // Import models
 const NewsArticle = require("./models/NewsArticle");
@@ -30,7 +31,7 @@ mongoose
 	.catch((err) => console.log(err));
 
 app.get("/", (req, res) => {
-	res.send("Hello");
+	res.send(200);
 });
 
 app.post("/astria", async (req, res) => {
@@ -116,6 +117,10 @@ app.post("/airtable", async (req, res) => {
 
 						const article = {
 							title: unchanged_cellValuesByFieldId_title,
+							slug: slugify(unchanged_cellValuesByFieldId_title, {
+								lower: true,
+								remove: /[.]/g
+							}),
 							banner_image: unchanged_cellValuesByFieldId_banner,
 							article: JSON.stringify(unchanged_cellValuesByFieldId_article),
 							categories: unchanged_cellValuesByFieldId_categories,
